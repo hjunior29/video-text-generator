@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local development
+local/
+examples/
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Documentation
+*.md
+!README.md
+
+# Tests
+tests/
+*_test.py
+test_*.py
