@@ -26,12 +26,9 @@ Thumbs.db
 # Local development
 local/
 examples/
-*.mp4
-*.avi
-*.mov
-*.mkv
 
 # Documentation
+docs/
 *.md
 !README.md
 
@@ -39,3 +36,6 @@ examples/
 tests/
 *_test.py
 test_*.py
+
+# Remotion output (we generate fresh)
+out/
