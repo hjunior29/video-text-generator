@@ -18,6 +18,7 @@ build:
     - "libpango-1.0-0"
     - "libcairo2"
     - "ffmpeg"
+    - "unzip"
 
   # python version in the form '3.11' or '3.11.4'
   python_version: "3.11"
