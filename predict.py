@@ -31,6 +31,11 @@ WHISPER_TEMPERATURE_INCREMENT_ON_FALLBACK = 0.2  # Temperature increase on fallb
 WHISPER_COMPRESSION_RATIO_THRESHOLD = 2.4  # Max compression ratio before failure
 WHISPER_LOGPROB_THRESHOLD = -1.0  # Min log probability threshold
 WHISPER_NO_SPEECH_THRESHOLD = 0.6  # No speech probability threshold
+
+# =============================================================================
+# CAPTION STYLE SETTINGS (hardcoded - modify here if needed)
+# =============================================================================
+CAPTION_POSITION = 150  # Distance from bottom in pixels
 # =============================================================================
 
 
@@ -203,6 +208,7 @@ class Predictor(BasePredictor):
             "video": hash + ".mp4",
             "captionSize": caption_size,
             "highlightColor": highlight_color,
+            "captionPosition": CAPTION_POSITION,
         }
 
         render_command = f"/root/.bun/bin/bunx remotion render --concurrency='90%' --props='{json.dumps(props)}' CaptionedVideo out/{hash}_captioned.mp4"

@@ -13,15 +13,6 @@ import { TikTokPage } from "@remotion/captions";
 
 const fontFamily = TheBoldFont;
 
-const container: React.CSSProperties = {
-  justifyContent: "center",
-  alignItems: "center",
-  top: undefined,
-  bottom: "10%",
-  height: 150,
-};
-
-
 export const Page: React.FC<{
   readonly enterProgress: number;
   readonly page: TikTokPage;
@@ -33,6 +24,15 @@ export const Page: React.FC<{
   const inputProps = getInputProps()
   const DESIRED_FONT_SIZE = inputProps.captionSize as number;
   const HIGHLIGHT_COLOR = inputProps.highlightColor as string;
+  const CAPTION_POSITION = (inputProps.captionPosition as number) || 150; // pixels from bottom
+
+  const container: React.CSSProperties = {
+    justifyContent: "center",
+    alignItems: "center",
+    top: undefined,
+    bottom: CAPTION_POSITION,
+    height: 150,
+  };
 
   const fittedText = fitText({
     fontFamily,
