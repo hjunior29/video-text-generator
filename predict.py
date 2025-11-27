@@ -1,6 +1,6 @@
 """
 Video Text Generator for Replicate
-Generates beautiful TikTok/CapCut style captions with karaoke effect
+Add text overlays, titles, captions with karaoke effect to videos
 """
 
 from typing import Optional
@@ -22,6 +22,36 @@ from whisper.tokenizer import LANGUAGES, TO_LANGUAGE_CODE
 MODEL_CACHE = "weights"
 BASE_URL = f"https://weights.replicate.delivery/default/whisper-v3/{MODEL_CACHE}/"
 
+# Default layer configuration
+DEFAULT_LAYER_STYLE = {
+    "fontSize": 48,
+    "fontFamily": "TheBoldFont",
+    "color": "#FFFFFF",
+    "strokeColor": "#000000",
+    "strokeWidth": 3,
+    "textTransform": "none",
+    "letterSpacing": 0
+}
+
+DEFAULT_LAYER_POSITION = {
+    "x": 50,
+    "y": 50,
+    "anchor": "center"
+}
+
+DEFAULT_ANIMATION = {
+    "enter": {
+        "type": "fadeIn",
+        "duration": 300,
+        "easing": "easeOut"
+    },
+    "exit": {
+        "type": "fadeOut",
+        "duration": 200,
+        "easing": "easeIn"
+    }
+}
+
 
 def download_weights(url: str, dest: str) -> None:
     start = time.time()
@@ -42,17 +72,60 @@ def download_weights(url: str, dest: str) -> None:
 
 
 def run_bun_install():
-    try:
-        lockfile = Path("bun.lockb")
-        if not lockfile.exists():
-            bun_path = "/root/.bun/bin/bun"
-            if not bun_path:
-                raise FileNotFoundError("bun executable not found")
-            subprocess.run([bun_path, "install"], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error running bun install: {e}")
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
+    """Bun install is now run at build time in cog.yaml, so this is a no-op"""
+    pass
+
+
+def apply_defaults(layer: dict) -> dict:
+    """Apply default values to a layer configuration"""
+    # Apply position defaults
+    if "position" not in layer:
+        layer["position"] = DEFAULT_LAYER_POSITION.copy()
+    else:
+        for key, value in DEFAULT_LAYER_POSITION.items():
+            if key not in layer["position"]:
+                layer["position"][key] = value
+
+    # Apply style defaults
+    if "style" not in layer:
+        layer["style"] = DEFAULT_LAYER_STYLE.copy()
+    else:
+        for key, value in DEFAULT_LAYER_STYLE.items():
+            if key not in layer["style"]:
+                layer["style"][key] = value
+
+    # Apply animation defaults
+    if "animation" not in layer:
+        layer["animation"] = DEFAULT_ANIMATION.copy()
+
+    return layer
+
+
+def validate_layers(layers_data: dict) -> dict:
+    """Validate and normalize layers configuration"""
+    if "layers" not in layers_data:
+        raise ValueError("layers_json must contain a 'layers' array")
+
+    validated_layers = []
+    for i, layer in enumerate(layers_data["layers"]):
+        # Required fields for text layers
+        if layer.get("type") == "text":
+            if "content" not in layer:
+                raise ValueError(f"Layer {i}: 'text' type requires 'content' field")
+            if "startMs" not in layer:
+                layer["startMs"] = 0
+            if "endMs" not in layer:
+                raise ValueError(f"Layer {i}: 'text' type requires 'endMs' field")
+
+        # Generate ID if not provided
+        if "id" not in layer:
+            layer["id"] = f"layer-{i}"
+
+        # Apply defaults
+        layer = apply_defaults(layer)
+        validated_layers.append(layer)
+
+    return {"layers": validated_layers}
 
 
 class Predictor(BasePredictor):
@@ -89,114 +162,183 @@ class Predictor(BasePredictor):
 
     def predict(
         self,
-        video: Path = Input(description="Video file to add captions to"),
-        # Caption Style
-        style_preset: str = Input(
+        video: Path = Input(description="Video file to process"),
+
+        # Layers JSON - the main configuration
+        layers_json: str = Input(
+            default="",
+            description="""JSON configuration for text layers. Example:
+{
+  "layers": [
+    {
+      "type": "text",
+      "content": "MY TITLE",
+      "startMs": 0,
+      "endMs": 3000,
+      "position": {"x": 50, "y": 20},
+      "style": {"fontSize": 64, "color": "#FFFFFF"},
+      "animation": {"enter": {"type": "bounceIn", "duration": 500}}
+    },
+    {
+      "type": "caption",
+      "source": "whisper",
+      "position": {"x": 50, "y": 85},
+      "karaoke": true
+    }
+  ]
+}
+Leave empty to use simple mode with parameters below."""
+        ),
+
+        # Generate captions toggle
+        generate_captions: bool = Input(
+            default=True,
+            description="Generate captions from audio using Whisper AI"
+        ),
+
+        # Simple mode parameters (used when layers_json is empty)
+        caption_preset: str = Input(
             default="tiktok",
             choices=["tiktok", "capcut", "minimal", "bold", "neon", "gradient"],
-            description="Caption style preset. Each preset has unique colors, fonts and animations.",
+            description="[Simple Mode] Caption style preset",
+        ),
+        caption_position: str = Input(
+            default="bottom",
+            choices=["top", "center", "bottom"],
+            description="[Simple Mode] Caption vertical position",
         ),
         font_size: int = Input(
             default=48,
             ge=16,
             le=120,
-            description="Font size for captions (16-120)",
+            description="[Simple Mode] Font size for captions",
         ),
         highlight_color: str = Input(
             default="#39E508",
-            description="Color for the active word in karaoke mode (hex color)",
+            description="[Simple Mode] Karaoke highlight color (hex)",
         ),
         text_color: str = Input(
             default="#FFFFFF",
-            description="Color for inactive words (hex color)",
+            description="[Simple Mode] Base text color (hex)",
         ),
-        stroke_color: str = Input(
-            default="#000000",
-            description="Color for text outline/stroke (hex color)",
-        ),
-        stroke_width: int = Input(
-            default=5,
-            ge=0,
-            le=15,
-            description="Width of text outline (0 = no outline)",
-        ),
-        # Position
-        position: str = Input(
-            default="bottom",
-            choices=["top", "center", "bottom", "custom"],
-            description="Vertical position of captions",
-        ),
-        position_y: int = Input(
-            default=85,
-            ge=5,
-            le=95,
-            description="Custom Y position (% from top, only used when position='custom')",
-        ),
-        # Animation
         animation_style: str = Input(
             default="bounce",
             choices=["bounce", "slide", "fade", "pop", "wave", "none"],
-            description="Animation style for caption entrance",
+            description="[Simple Mode] Caption entrance animation",
         ),
-        words_per_line: int = Input(
-            default=4,
-            ge=1,
-            le=10,
-            description="Maximum words to show per caption line",
-        ),
-        # Background
-        background_style: str = Input(
-            default="none",
-            choices=["none", "blur", "solid", "gradient"],
-            description="Background style behind captions",
-        ),
-        background_color: str = Input(
-            default="#000000",
-            description="Background color (for solid/gradient, with opacity)",
-        ),
-        background_opacity: float = Input(
-            default=0.6,
-            ge=0.0,
-            le=1.0,
-            description="Background opacity (0-1)",
-        ),
+
         # Whisper settings
-        model: str = Input(
-            choices=["large-v3"],
-            default="large-v3",
-            description="Whisper model size",
-        ),
         language: str = Input(
             choices=["auto"]
             + sorted(LANGUAGES.keys())
             + sorted([k.title() for k in TO_LANGUAGE_CODE.keys()]),
             default="auto",
-            description="Language spoken in the audio",
-        ),
-        temperature: float = Input(
-            default=0,
-            description="Temperature for sampling",
-        ),
-        condition_on_previous_text: bool = Input(
-            default=True,
-            description="Use previous output as context for next window",
+            description="Language spoken in the audio (for captions)",
         ),
     ) -> Path:
-        """Generate beautiful karaoke-style captions for video"""
-        print(f"Processing video with {model} model.")
-        duration = get_audio_duration(video)
-        print(f"Audio duration: {duration} sec")
+        """Add text overlays and captions to video"""
 
         # File identifier
-        hash = hashlib.md5(str(video).encode('utf-8')).hexdigest()
-        print(f"Hash: {hash}")
+        file_hash = hashlib.md5(str(video).encode('utf-8')).hexdigest()
+        print(f"Processing video - Hash: {file_hash}")
 
-        if model != self.current_model:
-            self.model = self.load_model(model)
+        # Parse layers configuration
+        if layers_json and layers_json.strip():
+            try:
+                layers_data = json.loads(layers_json)
+                layers_data = validate_layers(layers_data)
+                print(f"Using custom layers configuration: {len(layers_data['layers'])} layers")
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON in layers_json: {e}")
+        else:
+            # Simple mode - create default caption layer
+            position_map = {"top": 15, "center": 50, "bottom": 85}
+            layers_data = {
+                "layers": [
+                    {
+                        "id": "captions",
+                        "type": "caption",
+                        "source": "whisper",
+                        "position": {
+                            "x": 50,
+                            "y": position_map.get(caption_position, 85),
+                            "anchor": "center"
+                        },
+                        "style": {
+                            "fontSize": font_size,
+                            "color": text_color,
+                            "highlightColor": highlight_color,
+                            "preset": caption_preset
+                        },
+                        "animation": {
+                            "enter": {
+                                "type": animation_style,
+                                "duration": 300
+                            }
+                        },
+                        "karaoke": True
+                    }
+                ]
+            }
+            print("Using simple mode with default caption layer")
+
+        # Check if we need to generate captions
+        has_caption_layer = any(
+            layer.get("type") == "caption" and layer.get("source") == "whisper"
+            for layer in layers_data["layers"]
+        )
+
+        whisper_results = []
+        if generate_captions and has_caption_layer:
+            print("Generating captions with Whisper...")
+            whisper_results = self._run_whisper(video, language)
+            print(f"Generated {len(whisper_results)} word timestamps")
+
+        # Prepare files for Remotion
+        os.makedirs("/src/public", exist_ok=True)
+
+        # Save whisper results
+        captions_file = f"/src/public/{file_hash}_captions.json"
+        with open(captions_file, "w") as f:
+            json.dump(whisper_results, f, indent=2)
+
+        # Save layers configuration
+        layers_file = f"/src/public/{file_hash}_layers.json"
+        with open(layers_file, "w") as f:
+            json.dump(layers_data, f, indent=2)
+
+        # Copy video
+        video_file = f"/src/public/{file_hash}.mp4"
+        if not os.path.exists(str(video)):
+            raise FileNotFoundError(f"Source video not found: {video}")
+        shutil.copy2(str(video), video_file)
+
+        # Build render props
+        props = {
+            "video": f"{file_hash}.mp4",
+            "captionsFile": f"{file_hash}_captions.json",
+            "layersFile": f"{file_hash}_layers.json",
+        }
+
+        # Render with Remotion
+        render_command = f"/root/.bun/bin/bunx remotion render --concurrency='90%' --props='{json.dumps(props)}' VideoWithLayers out/{file_hash}_output.mp4"
+        print(f"Running render command...")
+        subprocess.run(['bash', '-c', render_command], check=True)
+
+        # Cleanup
+        os.remove(video_file)
+        os.remove(captions_file)
+        os.remove(layers_file)
+
+        return Path(f"/src/out/{file_hash}_output.mp4")
+
+    def _run_whisper(self, video: Path, language: str) -> list:
+        """Run Whisper transcription and return word-level timestamps"""
+
+        if "large-v3" != self.current_model:
+            self.model = self.load_model("large-v3")
         else:
             self.model = self.models[self.current_model]
-
-        temperature = [temperature]
 
         normalized_language = language.lower() if language.lower() != "auto" else None
         if normalized_language and normalized_language not in LANGUAGES:
@@ -205,7 +347,7 @@ class Predictor(BasePredictor):
         args = {
             "language": normalized_language,
             "suppress_tokens": "-1",
-            "condition_on_previous_text": condition_on_previous_text,
+            "condition_on_previous_text": True,
             "compression_ratio_threshold": 2.4,
             "logprob_threshold": -1.0,
             "no_speech_threshold": 0.6,
@@ -213,109 +355,53 @@ class Predictor(BasePredictor):
             "word_timestamps": True
         }
 
-        print("Running inference...")
+        print("Running Whisper inference...")
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
         start_event.record()
 
         with torch.inference_mode():
-            result = self.model.transcribe(str(video), temperature=temperature, **args)
+            result = self.model.transcribe(str(video), temperature=[0], **args)
 
         end_event.record()
         torch.cuda.synchronize()
         elapsed_time = start_event.elapsed_time(end_event)
-        print(f"Inference completed in {elapsed_time:.2f} ms")
+        print(f"Whisper completed in {elapsed_time:.2f} ms")
 
-        detected_language_code = result["language"]
-        detected_language_name = LANGUAGES.get(detected_language_code, detected_language_code)
-        print(f"Detected language: {detected_language_name}")
+        detected_language = LANGUAGES.get(result["language"], result["language"])
+        print(f"Detected language: {detected_language}")
 
-        formatted_results = format_whisper_results(result)
-
-        # Save results to JSON
-        output_file = f"/src/public/{hash}.json"
-        with open(output_file, "w") as f:
-            json.dump(formatted_results, f, indent=4)
-        print(f"Results saved to {output_file}")
-
-        # Copy video to public directory
-        video_file = f"/src/public/{hash}.mp4"
-        target_dir = os.path.dirname(video_file)
-
-        if not os.path.exists(str(video)):
-            raise FileNotFoundError(f"Source video not found: {video}")
-
-        os.makedirs(target_dir, exist_ok=True)
-        shutil.copy2(str(video), video_file)
-
-        # Calculate position percentage
-        position_map = {
-            "top": 15,
-            "center": 50,
-            "bottom": 85,
-            "custom": position_y
-        }
-        final_position_y = position_map.get(position, 85)
-
-        # Build render props
-        props = {
-            "video": hash + ".mp4",
-            # Style
-            "stylePreset": style_preset,
-            "fontSize": font_size,
-            "highlightColor": highlight_color,
-            "textColor": text_color,
-            "strokeColor": stroke_color,
-            "strokeWidth": stroke_width,
-            # Position
-            "positionY": final_position_y,
-            # Animation
-            "animationStyle": animation_style,
-            "wordsPerLine": words_per_line,
-            # Background
-            "backgroundStyle": background_style,
-            "backgroundColor": background_color,
-            "backgroundOpacity": background_opacity,
-        }
-
-        render_command = f"/root/.bun/bin/bunx remotion render --concurrency='90%' --props='{json.dumps(props)}' CaptionedVideo out/{hash}_captioned.mp4"
-        print(f"Running render command: {render_command}")
-        subprocess.run(['bash', '-c', render_command], check=True)
-
-        # Cleanup
-        os.remove(video_file)
-        os.remove(output_file)
-
-        return Path(f"/src/out/{hash}_captioned.mp4")
+        return format_whisper_results(result)
 
 
-def format_whisper_results(whisper_result):
+def format_whisper_results(whisper_result: dict) -> list:
+    """Format Whisper output to word-level timestamps"""
     formatted_results = []
 
-    for segment in whisper_result['segments']:
-        for word in segment['words']:
+    for segment in whisper_result.get('segments', []):
+        for word in segment.get('words', []):
             formatted_word = {
                 "text": word['word'],
                 "startMs": int(word['start'] * 1000),
                 "endMs": int(word['end'] * 1000),
-                "timestampMs": int((word['end'] * 1000)),
-                "confidence": round(word['probability'], 6)
+                "confidence": round(word.get('probability', 1.0), 6)
             }
             formatted_results.append(formatted_word)
 
     return formatted_results
 
 
-def get_audio_duration(file_path):
+def get_audio_duration(file_path) -> float:
+    """Get audio duration using ffprobe"""
     try:
         probe = ffmpeg.probe(file_path)
-        audio_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'audio'), None)
+        audio_stream = next(
+            (s for s in probe['streams'] if s['codec_type'] == 'audio'),
+            None
+        )
         if audio_stream and 'duration' in audio_stream:
-            duration = float(audio_stream['duration'])
-            return np.round(duration)
-        else:
-            print("No audio stream found, cannot calculate duration")
-            return -1
+            return float(audio_stream['duration'])
+        return -1
     except ffmpeg.Error as e:
-        print(f"Error reading audio file: {e.stderr}")
+        print(f"Error reading audio: {e.stderr}")
         return -1

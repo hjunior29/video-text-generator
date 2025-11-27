@@ -6,10 +6,10 @@ import {
   getInputProps,
 } from "remotion";
 import {
-  CaptionedVideo,
-  calculateCaptionedVideoMetadata,
-  captionedVideoSchema,
-} from "./CaptionedVideo";
+  VideoWithLayers,
+  calculateVideoWithLayersMetadata,
+  videoWithLayersSchema,
+} from "./VideoWithLayers";
 import { getVideoMetadata } from "@remotion/media-utils";
 import React, { useEffect, useState } from "react";
 
@@ -18,30 +18,40 @@ export const RemotionRoot: React.FC = () => {
   const [width, setWidth] = useState<number>(0);
   const [height, setHeight] = useState<number>(0);
   const inputProps = getInputProps();
-  const file = staticFile(inputProps.video as string);
+
+  // Get file paths from props
+  const videoFile = staticFile(inputProps.video as string);
+  const captionsFile = (inputProps.captionsFile as string) || "";
+  const layersFile = (inputProps.layersFile as string) || "";
 
   useEffect(() => {
-    getVideoMetadata(file)
+    getVideoMetadata(videoFile)
       .then(({ width, height }) => {
         setWidth(width);
         setHeight(height);
         continueRender(handle);
       })
       .catch((err) => {
-        console.log(`Error fetching metadata: ${err}`);
+        console.error(`Error fetching metadata: ${err}`);
+        // Still continue render with default dimensions
+        setWidth(1080);
+        setHeight(1920);
+        continueRender(handle);
       });
-  }, [handle, file]);
+  }, [handle, videoFile]);
 
   return (
     <Composition
-      id="CaptionedVideo"
-      component={CaptionedVideo}
-      calculateMetadata={calculateCaptionedVideoMetadata}
-      schema={captionedVideoSchema}
+      id="VideoWithLayers"
+      component={VideoWithLayers}
+      calculateMetadata={calculateVideoWithLayersMetadata}
+      schema={videoWithLayersSchema}
       width={width}
       height={height}
       defaultProps={{
-        src: file,
+        src: videoFile,
+        captionsFile: captionsFile,
+        layersFile: layersFile,
       }}
     />
   );
