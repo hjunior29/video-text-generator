@@ -32,11 +32,6 @@ WHISPER_COMPRESSION_RATIO_THRESHOLD = 2.4  # Max compression ratio before failur
 WHISPER_LOGPROB_THRESHOLD = -1.0  # Min log probability threshold
 WHISPER_NO_SPEECH_THRESHOLD = 0.6  # No speech probability threshold
 
-# =============================================================================
-# CAPTION STYLE SETTINGS (hardcoded - modify here if needed)
-# =============================================================================
-CAPTION_POSITION = 150  # Distance from bottom in pixels
-# =============================================================================
 
 
 def download_weights(url: str, dest: str) -> None:
@@ -124,6 +119,10 @@ class Predictor(BasePredictor):
         text_overlays: str = Input(
             default="",
             description='''JSON array of text overlays. Example: [{"text": "TITLE", "startMs": 0, "endMs": 3000, "position": "center", "fontSize": 80, "color": "#FFFFFF"}]. Fields: text (required), startMs (required), endMs (required), position ("top"/"center"/"bottom", default: "center"), fontSize (default: 60), color (default: "#FFFFFF"), backgroundColor (optional, e.g. "rgba(0,0,0,0.5)")''',
+        ),
+        caption_position: int = Input(
+            default=150,
+            description="Distance from the bottom of the video in pixels (150 = bottom, 300 = center, 500 = top)",
         ),
     ) -> Path:
         """Run a single prediction on the model"""
@@ -227,7 +226,7 @@ class Predictor(BasePredictor):
             "captionStyle": caption_style,
             "captionSize": caption_size,
             "highlightColor": highlight_color,
-            "captionPosition": CAPTION_POSITION,
+            "captionPosition": caption_position,
             "textOverlays": parsed_overlays,
         }
 
