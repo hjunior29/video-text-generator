@@ -36,7 +36,6 @@ build:
     - "curl -fsSL https://bun.sh/install | bash"
     - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/download/v0.8.2/pget_linux_x86_64" && chmod +x /usr/local/bin/pget
     - mkdir -p /src/weights && pget -vf https://weights.replicate.delivery/default/whisper-v3/weights/large-v3.pt /src/weights/large-v3.pt
-    - /root/.bun/bin/bun install
     - --mount=type=cache,target=/root/.cache/pip pip install cog==0.10.0a15
     - ln -sf $(which echo) $(which pip)
 

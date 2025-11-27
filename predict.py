@@ -72,8 +72,17 @@ def download_weights(url: str, dest: str) -> None:
 
 
 def run_bun_install():
-    """Bun install is now run at build time in cog.yaml, so this is a no-op"""
-    pass
+    try:
+        lockfile = Path("bun.lockb")
+        if not lockfile.exists():
+            bun_path = "/root/.bun/bin/bun"
+            if not bun_path:
+                raise FileNotFoundError("bun executable not found")
+            subprocess.run([bun_path, "install"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error running bun install: {e}")
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
 
 
 def apply_defaults(layer: dict) -> dict:
