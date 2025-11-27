@@ -67,6 +67,7 @@ const ClassicStyle: React.FC<{
 
 // =============================================================================
 // BOXED STYLE - Words with background boxes (like TikTok/Instagram)
+// Only the active word has a background box
 // =============================================================================
 const BoxedStyle: React.FC<{
   page: TikTokPage;
@@ -82,7 +83,7 @@ const BoxedStyle: React.FC<{
         flexWrap: "wrap",
         justifyContent: "center",
         alignItems: "center",
-        gap: "8px",
+        gap: "12px",
         transform: makeTransform([
           scale(interpolate(enterProgress, [0, 1], [0.8, 1])),
           translateY(interpolate(enterProgress, [0, 1], [50, 0])),
@@ -104,16 +105,21 @@ const BoxedStyle: React.FC<{
           <span
             key={t.fromMs}
             style={{
-              display: "inline-block",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
               fontSize,
               fontFamily,
               textTransform: "uppercase",
               fontWeight: "bold",
+              lineHeight: 1,
+              // Active word: colored background, black text
+              // Inactive word: no background, white text with stroke
               color: active ? "#000000" : "white",
-              backgroundColor: active ? highlightColor : "rgba(0, 0, 0, 0.7)",
-              padding: "8px 16px",
-              borderRadius: "8px",
-              WebkitTextStroke: active ? "0px" : "2px black",
+              backgroundColor: active ? highlightColor : "transparent",
+              padding: active ? "12px 20px" : "0",
+              borderRadius: active ? "10px" : "0",
+              WebkitTextStroke: active ? "0px" : "4px black",
               paintOrder: "stroke",
             }}
           >
