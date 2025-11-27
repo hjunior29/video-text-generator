@@ -108,6 +108,11 @@ class Predictor(BasePredictor):
     def predict(
         self,
         video: Path = Input(description="Video file to add captions to"),
+        caption_style: str = Input(
+            default="boxed",
+            choices=["classic", "boxed"],
+            description="Caption style: 'classic' (text with stroke) or 'boxed' (words with background boxes)",
+        ),
         caption_size: int = Input(
             default=30,
             description="Font size for the captions",
@@ -206,6 +211,7 @@ class Predictor(BasePredictor):
         # run bun rendering command to render the video with the subtitles
         props = {
             "video": hash + ".mp4",
+            "captionStyle": caption_style,
             "captionSize": caption_size,
             "highlightColor": highlight_color,
             "captionPosition": CAPTION_POSITION,

@@ -13,6 +13,121 @@ import { TikTokPage } from "@remotion/captions";
 
 const fontFamily = TheBoldFont;
 
+// =============================================================================
+// CLASSIC STYLE - Simple text with stroke, highlight changes color
+// =============================================================================
+const ClassicStyle: React.FC<{
+  page: TikTokPage;
+  timeInMs: number;
+  fontSize: number;
+  highlightColor: string;
+  enterProgress: number;
+}> = ({ page, timeInMs, fontSize, highlightColor, enterProgress }) => {
+  return (
+    <div
+      style={{
+        fontSize,
+        color: "white",
+        WebkitTextStroke: "5px black",
+        paintOrder: "stroke",
+        transform: makeTransform([
+          scale(interpolate(enterProgress, [0, 1], [0.8, 1])),
+          translateY(interpolate(enterProgress, [0, 1], [50, 0])),
+        ]),
+        fontFamily,
+        textTransform: "uppercase",
+      }}
+    >
+      <span>
+        {page.tokens.map((t) => {
+          const startRelativeToSequence = t.fromMs - page.startMs;
+          const endRelativeToSequence = t.toMs - page.startMs;
+
+          const active =
+            startRelativeToSequence <= timeInMs &&
+            endRelativeToSequence > timeInMs;
+
+          return (
+            <span
+              key={t.fromMs}
+              style={{
+                display: "inline",
+                whiteSpace: "pre",
+                color: active ? highlightColor : "white",
+              }}
+            >
+              {t.text}
+            </span>
+          );
+        })}
+      </span>
+    </div>
+  );
+};
+
+// =============================================================================
+// BOXED STYLE - Words with background boxes (like TikTok/Instagram)
+// =============================================================================
+const BoxedStyle: React.FC<{
+  page: TikTokPage;
+  timeInMs: number;
+  fontSize: number;
+  highlightColor: string;
+  enterProgress: number;
+}> = ({ page, timeInMs, fontSize, highlightColor, enterProgress }) => {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: "8px",
+        transform: makeTransform([
+          scale(interpolate(enterProgress, [0, 1], [0.8, 1])),
+          translateY(interpolate(enterProgress, [0, 1], [50, 0])),
+        ]),
+      }}
+    >
+      {page.tokens.map((t) => {
+        const startRelativeToSequence = t.fromMs - page.startMs;
+        const endRelativeToSequence = t.toMs - page.startMs;
+
+        const active =
+          startRelativeToSequence <= timeInMs &&
+          endRelativeToSequence > timeInMs;
+
+        const displayText = t.text.trim();
+        if (!displayText) return null;
+
+        return (
+          <span
+            key={t.fromMs}
+            style={{
+              display: "inline-block",
+              fontSize,
+              fontFamily,
+              textTransform: "uppercase",
+              fontWeight: "bold",
+              color: active ? "#000000" : "white",
+              backgroundColor: active ? highlightColor : "rgba(0, 0, 0, 0.7)",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              WebkitTextStroke: active ? "0px" : "2px black",
+              paintOrder: "stroke",
+            }}
+          >
+            {displayText}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
+// =============================================================================
+// MAIN PAGE COMPONENT
+// =============================================================================
 export const Page: React.FC<{
   readonly enterProgress: number;
   readonly page: TikTokPage;
@@ -22,6 +137,7 @@ export const Page: React.FC<{
   const timeInMs = (frame / fps) * 1000;
 
   const inputProps = getInputProps();
+  const CAPTION_STYLE = (inputProps.captionStyle as string) || "boxed";
   const DESIRED_FONT_SIZE = inputProps.captionSize as number;
   const HIGHLIGHT_COLOR = inputProps.highlightColor as string;
   const CAPTION_POSITION = (inputProps.captionPosition as number) || 150;
@@ -46,53 +162,23 @@ export const Page: React.FC<{
 
   return (
     <AbsoluteFill style={container}>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: "8px",
-          transform: makeTransform([
-            scale(interpolate(enterProgress, [0, 1], [0.8, 1])),
-            translateY(interpolate(enterProgress, [0, 1], [50, 0])),
-          ]),
-        }}
-      >
-        {page.tokens.map((t) => {
-          const startRelativeToSequence = t.fromMs - page.startMs;
-          const endRelativeToSequence = t.toMs - page.startMs;
-
-          const active =
-            startRelativeToSequence <= timeInMs &&
-            endRelativeToSequence > timeInMs;
-
-          // Trim whitespace for display but keep original for spacing logic
-          const displayText = t.text.trim();
-          if (!displayText) return null;
-
-          return (
-            <span
-              key={t.fromMs}
-              style={{
-                display: "inline-block",
-                fontSize,
-                fontFamily,
-                textTransform: "uppercase",
-                fontWeight: "bold",
-                color: active ? "#000000" : "white",
-                backgroundColor: active ? HIGHLIGHT_COLOR : "rgba(0, 0, 0, 0.7)",
-                padding: "8px 16px",
-                borderRadius: "8px",
-                WebkitTextStroke: active ? "0px" : "2px black",
-                paintOrder: "stroke",
-              }}
-            >
-              {displayText}
-            </span>
-          );
-        })}
-      </div>
+      {CAPTION_STYLE === "classic" ? (
+        <ClassicStyle
+          page={page}
+          timeInMs={timeInMs}
+          fontSize={fontSize}
+          highlightColor={HIGHLIGHT_COLOR}
+          enterProgress={enterProgress}
+        />
+      ) : (
+        <BoxedStyle
+          page={page}
+          timeInMs={timeInMs}
+          fontSize={fontSize}
+          highlightColor={HIGHLIGHT_COLOR}
+          enterProgress={enterProgress}
+        />
+      )}
     </AbsoluteFill>
   );
 };
