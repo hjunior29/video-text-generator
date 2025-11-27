@@ -1,0 +1,22 @@
+image: "r8.im/hjunior29/video-text-generator"
+
+build:
+  gpu: true
+  cuda: "12.1"
+  python_version: "3.11"
+  system_packages:
+    - "ffmpeg"
+    - "curl"
+    - "git"
+    - "build-essential"
+    - "cmake"
+  python_packages:
+    - "httpx"
+  run:
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - apt-get install -y nodejs
+    - npm install -g bun
+    - cd /src && bun install
+    - cd /src && bun run build
+
+predict: "predict.py:Predictor"

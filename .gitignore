@@ -46,13 +46,10 @@ node_modules/
 
 # Remotion
 out/
+build/
 
 # Local development
 local/
-*.mp4
-*.avi
-*.mov
-*.mkv
 
 # Temporary files
 tmp/
@@ -64,3 +61,9 @@ temp/
 
 # Weights
 weights/
+
+# Whisper
+whisper.cpp/
+
+# Bun
+bun.lockb
