@@ -17,6 +17,23 @@ from whisper.tokenizer import LANGUAGES, TO_LANGUAGE_CODE
 MODEL_CACHE = "weights"
 BASE_URL = f"https://weights.replicate.delivery/default/whisper-v3/{MODEL_CACHE}/"
 
+# =============================================================================
+# ADVANCED WHISPER SETTINGS (hardcoded - modify here if needed)
+# =============================================================================
+WHISPER_MODEL = "large-v3"  # Options: "large-v3", "large-v2", "large-v1", "medium", "small", "base", "tiny"
+WHISPER_LANGUAGE = "auto"  # "auto" for auto-detection, or specific language code like "en", "pt", "es"
+WHISPER_TEMPERATURE = 0  # Temperature for sampling
+WHISPER_PATIENCE = None  # Patience value for beam decoding (None = default 1.0)
+WHISPER_SUPPRESS_TOKENS = "-1"  # Token IDs to suppress ("-1" = most special chars)
+WHISPER_INITIAL_PROMPT = None  # Optional prompt for first window
+WHISPER_CONDITION_ON_PREVIOUS_TEXT = True  # Use previous output as prompt
+WHISPER_TEMPERATURE_INCREMENT_ON_FALLBACK = 0.2  # Temperature increase on fallback
+WHISPER_COMPRESSION_RATIO_THRESHOLD = 2.4  # Max compression ratio before failure
+WHISPER_LOGPROB_THRESHOLD = -1.0  # Min log probability threshold
+WHISPER_NO_SPEECH_THRESHOLD = 0.6  # No speech probability threshold
+# =============================================================================
+
+
 def download_weights(url: str, dest: str) -> None:
     start = time.time()
     print("[!] Initiating download from URL: ", url)
@@ -56,8 +73,8 @@ class Predictor(BasePredictor):
         """Load the large-v3 model"""
         self.model_cache = MODEL_CACHE
         self.models = {}
-        self.current_model = "large-v3"
-        self.load_model("large-v3")
+        self.current_model = WHISPER_MODEL
+        self.load_model(WHISPER_MODEL)
         run_bun_install()
 
     def load_model(self, model_name):
@@ -85,68 +102,18 @@ class Predictor(BasePredictor):
 
     def predict(
         self,
-        video: Path = Input(description="Video Path"),
+        video: Path = Input(description="Video file to add captions to"),
         caption_size: int = Input(
             default=30,
-            description="The maximum number of words to generate in each window",
+            description="Font size for the captions",
         ),
         highlight_color: str = Input(
             default="#39E508",
-            description="The color of the highlight for the captioned text",
-        ),
-        model: str = Input(
-            choices=[
-                "large-v3",
-            ],
-            default="large-v3",
-            description="Whisper model size (currently only large-v3 is supported).",
-        ),
-        language: str = Input(
-            choices=["auto"]
-            + sorted(LANGUAGES.keys())
-            + sorted([k.title() for k in TO_LANGUAGE_CODE.keys()]),
-            default="auto",
-            description="Language spoken in the audio, specify 'auto' for automatic language detection",
-        ),
-        temperature: float = Input(
-            default=0,
-            description="temperature to use for sampling",
-        ),
-        patience: float = Input(
-            default=None,
-            description="optional patience value to use in beam decoding, as in https://arxiv.org/abs/2204.05424, the default (1.0) is equivalent to conventional beam search",
-        ),
-        suppress_tokens: str = Input(
-            default="-1",
-            description="comma-separated list of token ids to suppress during sampling; '-1' will suppress most special characters except common punctuations",
-        ),
-        initial_prompt: str = Input(
-            default=None,
-            description="optional text to provide as a prompt for the first window.",
-        ),
-        condition_on_previous_text: bool = Input(
-            default=True,
-            description="if True, provide the previous output of the model as a prompt for the next window; disabling may make the text inconsistent across windows, but the model becomes less prone to getting stuck in a failure loop",
-        ),
-        temperature_increment_on_fallback: float = Input(
-            default=0.2,
-            description="temperature to increase when falling back when the decoding fails to meet either of the thresholds below",
-        ),
-        compression_ratio_threshold: float = Input(
-            default=2.4,
-            description="if the gzip compression ratio is higher than this value, treat the decoding as failed",
-        ),
-        logprob_threshold: float = Input(
-            default=-1.0,
-            description="if the average log probability is lower than this value, treat the decoding as failed",
-        ),
-        no_speech_threshold: float = Input(
-            default=0.6,
-            description="if the probability of the <|nospeech|> token is higher than this value AND the decoding has failed due to `logprob_threshold`, consider the segment as silence",
+            description="Color for the highlighted word (hex format)",
         ),
     ) -> Path:
         """Run a single prediction on the model"""
-        print(f"Transcribe with {model} model.")
+        print(f"Transcribe with {WHISPER_MODEL} model.")
         duration = get_audio_duration(video)
         print(f"Audio duration: {duration} sec")
 
@@ -154,31 +121,34 @@ class Predictor(BasePredictor):
         hash = hashlib.md5(str(video).encode('utf-8')).hexdigest()
         print(f"Hash: {hash}")
 
-        if model != self.current_model:
-            self.model = self.load_model(model)
+        if WHISPER_MODEL != self.current_model:
+            self.model = self.load_model(WHISPER_MODEL)
         else:
             self.model = self.models[self.current_model]
 
-        if temperature_increment_on_fallback is not None:
+        # Temperature settings
+        temperature = WHISPER_TEMPERATURE
+        if WHISPER_TEMPERATURE_INCREMENT_ON_FALLBACK is not None:
             temperature = tuple(
-                np.arange(temperature, 1.0 + 1e-6, temperature_increment_on_fallback)
+                np.arange(temperature, 1.0 + 1e-6, WHISPER_TEMPERATURE_INCREMENT_ON_FALLBACK)
             )
         else:
             temperature = [temperature]
 
-        normalized_language = language.lower() if language.lower() != "auto" else None
+        # Language normalization
+        normalized_language = WHISPER_LANGUAGE.lower() if WHISPER_LANGUAGE.lower() != "auto" else None
         if normalized_language and normalized_language not in LANGUAGES:
             normalized_language = TO_LANGUAGE_CODE.get(normalized_language, normalized_language)
 
         args = {
             "language": normalized_language,
-            "patience": patience,
-            "suppress_tokens": suppress_tokens,
-            "initial_prompt": initial_prompt,
-            "condition_on_previous_text": condition_on_previous_text,
-            "compression_ratio_threshold": compression_ratio_threshold,
-            "logprob_threshold": logprob_threshold,
-            "no_speech_threshold": no_speech_threshold,
+            "patience": WHISPER_PATIENCE,
+            "suppress_tokens": WHISPER_SUPPRESS_TOKENS,
+            "initial_prompt": WHISPER_INITIAL_PROMPT,
+            "condition_on_previous_text": WHISPER_CONDITION_ON_PREVIOUS_TEXT,
+            "compression_ratio_threshold": WHISPER_COMPRESSION_RATIO_THRESHOLD,
+            "logprob_threshold": WHISPER_LOGPROB_THRESHOLD,
+            "no_speech_threshold": WHISPER_NO_SPEECH_THRESHOLD,
             "fp16": True,
             "word_timestamps": True
         }
