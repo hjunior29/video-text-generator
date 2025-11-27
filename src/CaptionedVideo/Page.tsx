@@ -21,17 +21,18 @@ export const Page: React.FC<{
   const { width, fps } = useVideoConfig();
   const timeInMs = (frame / fps) * 1000;
 
-  const inputProps = getInputProps()
+  const inputProps = getInputProps();
   const DESIRED_FONT_SIZE = inputProps.captionSize as number;
   const HIGHLIGHT_COLOR = inputProps.highlightColor as string;
-  const CAPTION_POSITION = (inputProps.captionPosition as number) || 150; // pixels from bottom
+  const CAPTION_POSITION = (inputProps.captionPosition as number) || 150;
 
   const container: React.CSSProperties = {
     justifyContent: "center",
     alignItems: "center",
     top: undefined,
     bottom: CAPTION_POSITION,
-    height: 150,
+    height: "auto",
+    padding: "20px",
   };
 
   const fittedText = fitText({
@@ -47,48 +48,50 @@ export const Page: React.FC<{
     <AbsoluteFill style={container}>
       <div
         style={{
-          fontSize,
-          color: "white",
-          WebkitTextStroke: "5px black",
-          paintOrder: "stroke",
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: "8px",
           transform: makeTransform([
             scale(interpolate(enterProgress, [0, 1], [0.8, 1])),
             translateY(interpolate(enterProgress, [0, 1], [50, 0])),
           ]),
-          fontFamily,
-          textTransform: "uppercase",
         }}
       >
-        <span
-          style={{
-            transform: makeTransform([
-              scale(interpolate(enterProgress, [0, 1], [0.8, 1])),
-              translateY(interpolate(enterProgress, [0, 1], [50, 0])),
-            ]),
-          }}
-        >
-          {page.tokens.map((t) => {
-            const startRelativeToSequence = t.fromMs - page.startMs;
-            const endRelativeToSequence = t.toMs - page.startMs;
+        {page.tokens.map((t) => {
+          const startRelativeToSequence = t.fromMs - page.startMs;
+          const endRelativeToSequence = t.toMs - page.startMs;
 
-            const active =
-              startRelativeToSequence <= timeInMs &&
-              endRelativeToSequence > timeInMs;
+          const active =
+            startRelativeToSequence <= timeInMs &&
+            endRelativeToSequence > timeInMs;
 
-            return (
-              <span
-                key={t.fromMs}
-                style={{
-                  display: "inline",
-                  whiteSpace: "pre",
-                  color: active ? HIGHLIGHT_COLOR : "white",
-                }}
-              >
-                {t.text}
-              </span>
-            );
-          })}
-        </span>
+          // Trim whitespace for display but keep original for spacing logic
+          const displayText = t.text.trim();
+          if (!displayText) return null;
+
+          return (
+            <span
+              key={t.fromMs}
+              style={{
+                display: "inline-block",
+                fontSize,
+                fontFamily,
+                textTransform: "uppercase",
+                fontWeight: "bold",
+                color: active ? "#000000" : "white",
+                backgroundColor: active ? HIGHLIGHT_COLOR : "rgba(0, 0, 0, 0.7)",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                WebkitTextStroke: active ? "0px" : "2px black",
+                paintOrder: "stroke",
+              }}
+            >
+              {displayText}
+            </span>
+          );
+        })}
       </div>
     </AbsoluteFill>
   );
