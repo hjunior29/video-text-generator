@@ -118,7 +118,7 @@ class Predictor(BasePredictor):
         ),
         text_overlays: str = Input(
             default="",
-            description='''JSON array of text overlays. Example: [{"text": "TITLE", "startMs": 0, "endMs": 3000, "position": "center", "fontSize": 80, "color": "#FFFFFF"}]. Fields: text (required), startMs (required), endMs (required), position ("top"/"center"/"bottom", default: "center"), fontSize (default: 60), color (default: "#FFFFFF"), backgroundColor (optional, e.g. "rgba(0,0,0,0.5)")''',
+            description='''JSON array of text overlays. Example: [{"text": "TITLE", "startMs": 0, "endMs": 3000, "position": 300, "fontSize": 80, "color": "#FFFFFF"}]. Fields: text (required), startMs (required), endMs (required), position (distance from bottom in pixels, default: 300), fontSize (default: 60), color (default: "#FFFFFF"), backgroundColor (optional, e.g. "rgba(0,0,0,0.5)")''',
         ),
         caption_position: int = Input(
             default=150,

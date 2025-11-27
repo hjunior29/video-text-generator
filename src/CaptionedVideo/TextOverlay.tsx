@@ -12,7 +12,7 @@ export interface TextOverlayItem {
   text: string;
   startMs: number;
   endMs: number;
-  position?: "top" | "center" | "bottom";
+  position?: number; // Distance from bottom in pixels (like captionPosition)
   fontSize?: number;
   color?: string;
   backgroundColor?: string;
@@ -31,7 +31,7 @@ export const TextOverlay: React.FC<TextOverlayProps> = ({ overlay }) => {
     text,
     startMs,
     endMs,
-    position = "center",
+    position = 300, // Default: middle area
     fontSize = 60,
     color = "#FFFFFF",
     backgroundColor,
@@ -71,22 +71,15 @@ export const TextOverlay: React.FC<TextOverlayProps> = ({ overlay }) => {
         )
       : 1;
 
-  // Position styles
-  const positionStyles: React.CSSProperties = {
-    top: position === "top" ? "10%" : position === "center" ? "50%" : undefined,
-    bottom: position === "bottom" ? "20%" : undefined,
-    transform:
-      position === "center"
-        ? `translateY(-50%) scale(${interpolate(enterProgress, [0, 1], [0.8, 1])})`
-        : `scale(${interpolate(enterProgress, [0, 1], [0.8, 1])})`,
-  };
-
   return (
     <AbsoluteFill
       style={{
         justifyContent: "center",
         alignItems: "center",
-        ...positionStyles,
+        bottom: position,
+        top: undefined,
+        height: "auto",
+        transform: `scale(${interpolate(enterProgress, [0, 1], [0.8, 1])})`,
         opacity: enterProgress * exitProgress,
       }}
     >
