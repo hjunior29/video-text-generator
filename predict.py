@@ -139,11 +139,11 @@ def validate_layers(layers_data: dict) -> dict:
 
 class Predictor(BasePredictor):
     def setup(self):
-        """Load the large-v3 model"""
+        """Initialize predictor - model loaded lazily on first predict"""
         self.model_cache = MODEL_CACHE
         self.models = {}
-        self.current_model = "large-v3"
-        self.load_model("large-v3")
+        self.current_model = None
+        self.model = None
         run_bun_install()
 
     def load_model(self, model_name):
@@ -344,7 +344,8 @@ Leave empty to use simple mode with parameters below."""
     def _run_whisper(self, video: Path, language: str) -> list:
         """Run Whisper transcription and return word-level timestamps"""
 
-        if "large-v3" != self.current_model:
+        # Lazy load model on first use
+        if self.current_model != "large-v3" or "large-v3" not in self.models:
             self.model = self.load_model("large-v3")
         else:
             self.model = self.models[self.current_model]
