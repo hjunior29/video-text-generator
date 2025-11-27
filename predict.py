@@ -109,7 +109,7 @@ class Predictor(BasePredictor):
             description="Caption style: 'classic' (text with stroke) or 'boxed' (words with background boxes)",
         ),
         caption_size: int = Input(
-            default=30,
+            default=60,
             description="Font size for the captions",
         ),
         highlight_color: str = Input(
