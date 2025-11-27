@@ -1,6 +1,7 @@
 import React from "react";
 import {
   AbsoluteFill,
+  getInputProps,
   interpolate,
   useCurrentFrame,
   useVideoConfig,
@@ -12,34 +13,26 @@ import { TikTokPage } from "@remotion/captions";
 
 const fontFamily = TheBoldFont;
 
-interface PageProps {
+const container: React.CSSProperties = {
+  justifyContent: "center",
+  alignItems: "center",
+  top: undefined,
+  bottom: "10%",
+  height: 150,
+};
+
+
+export const Page: React.FC<{
   readonly enterProgress: number;
   readonly page: TikTokPage;
-  readonly highlightColor: string;
-  readonly fontSize: number;
-  readonly captionPosition: number;
-  readonly strokeWidth: number;
-}
-
-export const Page: React.FC<PageProps> = ({
-  enterProgress,
-  page,
-  highlightColor,
-  fontSize: desiredFontSize,
-  captionPosition,
-  strokeWidth,
-}) => {
+}> = ({ enterProgress, page }) => {
   const frame = useCurrentFrame();
   const { width, fps } = useVideoConfig();
   const timeInMs = (frame / fps) * 1000;
 
-  const container: React.CSSProperties = {
-    justifyContent: "center",
-    alignItems: "center",
-    top: undefined,
-    bottom: captionPosition,
-    height: 150,
-  };
+  const inputProps = getInputProps()
+  const DESIRED_FONT_SIZE = inputProps.captionSize as number;
+  const HIGHLIGHT_COLOR = inputProps.highlightColor as string;
 
   const fittedText = fitText({
     fontFamily,
@@ -48,7 +41,7 @@ export const Page: React.FC<PageProps> = ({
     textTransform: "uppercase",
   });
 
-  const fontSize = Math.min(desiredFontSize, fittedText.fontSize);
+  const fontSize = Math.min(DESIRED_FONT_SIZE, fittedText.fontSize);
 
   return (
     <AbsoluteFill style={container}>
@@ -56,7 +49,7 @@ export const Page: React.FC<PageProps> = ({
         style={{
           fontSize,
           color: "white",
-          WebkitTextStroke: `${strokeWidth}px black`,
+          WebkitTextStroke: "5px black",
           paintOrder: "stroke",
           transform: makeTransform([
             scale(interpolate(enterProgress, [0, 1], [0.8, 1])),
@@ -88,7 +81,7 @@ export const Page: React.FC<PageProps> = ({
                 style={{
                   display: "inline",
                   whiteSpace: "pre",
-                  color: active ? highlightColor : "white",
+                  color: active ? HIGHLIGHT_COLOR : "white",
                 }}
               >
                 {t.text}
