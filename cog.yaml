@@ -31,6 +31,7 @@ build:
     - "transformers==4.35.0"
     - "ffmpeg-python==0.2.0"
     - "openai-whisper==20231106"
+    - "httpx==0.24.1"
     - ipython
 
   # commands run after the environment is setup
