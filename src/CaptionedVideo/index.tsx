@@ -5,6 +5,7 @@ import {
   cancelRender,
   continueRender,
   delayRender,
+  getInputProps,
   getStaticFiles,
   OffthreadVideo,
   Sequence,
@@ -17,6 +18,7 @@ import { getVideoMetadata } from "@remotion/media-utils";
 import { loadFont } from "../load-font";
 import { NoCaptionFile } from "./NoCaptionFile";
 import { Caption, createTikTokStyleCaptions } from "@remotion/captions";
+import { TextOverlay, TextOverlayItem } from "./TextOverlay";
 
 export type SubtitleProp = {
   startInSeconds: number;
@@ -60,6 +62,10 @@ export const CaptionedVideo: React.FC<{
   const [handle] = useState(() => delayRender());
   const { fps } = useVideoConfig();
 
+  // Get text overlays from input props
+  const inputProps = getInputProps();
+  const textOverlays = (inputProps.textOverlays as TextOverlayItem[]) || [];
+
   const subtitlesFile = src
     .replace(/.mp4$/, ".json")
     .replace(/.mkv$/, ".json")
@@ -99,6 +105,7 @@ export const CaptionedVideo: React.FC<{
 
   return (
     <AbsoluteFill style={{ backgroundColor: "white" }}>
+      {/* Video layer */}
       <AbsoluteFill>
         <OffthreadVideo
           style={{
@@ -107,6 +114,13 @@ export const CaptionedVideo: React.FC<{
           src={src}
         />
       </AbsoluteFill>
+
+      {/* Text overlays layer (behind captions) */}
+      {textOverlays.map((overlay, index) => (
+        <TextOverlay key={`overlay-${index}`} overlay={overlay} />
+      ))}
+
+      {/* Captions layer */}
       {pages.map((page, index) => {
         const nextPage = pages[index + 1] ?? null;
         const subtitleStartFrame = (page.startMs / 1000) * fps;

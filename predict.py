@@ -121,6 +121,10 @@ class Predictor(BasePredictor):
             default="#39E508",
             description="Color for the highlighted word (hex format)",
         ),
+        text_overlays: str = Input(
+            default="",
+            description='''JSON array of text overlays. Example: [{"text": "TITLE", "startMs": 0, "endMs": 3000, "position": "center", "fontSize": 80, "color": "#FFFFFF"}]. Fields: text (required), startMs (required), endMs (required), position ("top"/"center"/"bottom", default: "center"), fontSize (default: 60), color (default: "#FFFFFF"), backgroundColor (optional, e.g. "rgba(0,0,0,0.5)")''',
+        ),
     ) -> Path:
         """Run a single prediction on the model"""
         print(f"Transcribe with {WHISPER_MODEL} model.")
@@ -208,6 +212,15 @@ class Predictor(BasePredictor):
         # Copy with error handling
         shutil.copy2(str(video), video_file)
 
+        # Parse text overlays JSON
+        parsed_overlays = []
+        if text_overlays and text_overlays.strip():
+            try:
+                parsed_overlays = json.loads(text_overlays)
+                print(f"Text overlays: {len(parsed_overlays)} items")
+            except json.JSONDecodeError as e:
+                print(f"Warning: Invalid text_overlays JSON: {e}")
+
         # run bun rendering command to render the video with the subtitles
         props = {
             "video": hash + ".mp4",
@@ -215,6 +228,7 @@ class Predictor(BasePredictor):
             "captionSize": caption_size,
             "highlightColor": highlight_color,
             "captionPosition": CAPTION_POSITION,
+            "textOverlays": parsed_overlays,
         }
 
         render_command = f"/root/.bun/bin/bunx remotion render --concurrency='90%' --props='{json.dumps(props)}' CaptionedVideo out/{hash}_captioned.mp4"
