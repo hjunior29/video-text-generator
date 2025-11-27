@@ -42,7 +42,6 @@ Thumbs.db
 
 # Node.js
 node_modules/
-bun.lockb
 .bun/
 
 # Remotion

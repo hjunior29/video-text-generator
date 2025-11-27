@@ -39,3 +39,6 @@ test_*.py
 
 # Remotion output (we generate fresh)
 out/
+
+# Node modules (installed during setup)
+node_modules/
