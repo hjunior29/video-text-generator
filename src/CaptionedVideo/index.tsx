@@ -16,7 +16,6 @@ import { z } from "zod";
 import SubtitlePage from "./SubtitlePage";
 import { getVideoMetadata } from "@remotion/media-utils";
 import { loadFont } from "../load-font";
-import { NoCaptionFile } from "./NoCaptionFile";
 import { Caption, createTikTokStyleCaptions } from "@remotion/captions";
 import { TextOverlay, TextOverlayItem } from "./TextOverlay";
 
@@ -77,10 +76,14 @@ export const CaptionedVideo: React.FC<{
       await loadFont();
       const res = await fetch(subtitlesFile);
       const data = (await res.json()) as Caption[];
-      setSubtitles(data);
+      // Handle empty captions array (no audio or no speech)
+      setSubtitles(Array.isArray(data) ? data : []);
       continueRender(handle);
     } catch (e) {
-      cancelRender(e);
+      // If subtitle file doesn't exist or is invalid, continue without captions
+      console.warn("Could not load subtitles, continuing without captions:", e);
+      setSubtitles([]);
+      continueRender(handle);
     }
   }, [handle, subtitlesFile]);
 
@@ -143,7 +146,7 @@ export const CaptionedVideo: React.FC<{
           </Sequence>
         );
       })}
-      {getFileExists(subtitlesFile) ? null : <NoCaptionFile />}
+      {/* NoCaptionFile removed - empty captions is now a valid scenario */}
     </AbsoluteFill>
   );
 };

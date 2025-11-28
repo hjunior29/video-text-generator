@@ -126,67 +126,78 @@ class Predictor(BasePredictor):
         ),
     ) -> Path:
         """Run a single prediction on the model"""
-        print(f"Transcribe with {WHISPER_MODEL} model.")
-        duration = get_audio_duration(video)
-        print(f"Audio duration: {duration} sec")
-
         # file identifier
         hash = hashlib.md5(str(video).encode('utf-8')).hexdigest()
         print(f"Hash: {hash}")
 
-        if WHISPER_MODEL != self.current_model:
-            self.model = self.load_model(WHISPER_MODEL)
+        # Check if video has audio stream
+        has_audio = has_audio_stream(video)
+        formatted_results = []
+
+        if has_audio:
+            print(f"Transcribe with {WHISPER_MODEL} model.")
+            duration = get_audio_duration(video)
+            print(f"Audio duration: {duration} sec")
+
+            if WHISPER_MODEL != self.current_model:
+                self.model = self.load_model(WHISPER_MODEL)
+            else:
+                self.model = self.models[self.current_model]
+
+            # Temperature settings
+            temperature = WHISPER_TEMPERATURE
+            if WHISPER_TEMPERATURE_INCREMENT_ON_FALLBACK is not None:
+                temperature = tuple(
+                    np.arange(temperature, 1.0 + 1e-6, WHISPER_TEMPERATURE_INCREMENT_ON_FALLBACK)
+                )
+            else:
+                temperature = [temperature]
+
+            # Language normalization
+            normalized_language = WHISPER_LANGUAGE.lower() if WHISPER_LANGUAGE.lower() != "auto" else None
+            if normalized_language and normalized_language not in LANGUAGES:
+                normalized_language = TO_LANGUAGE_CODE.get(normalized_language, normalized_language)
+
+            args = {
+                "language": normalized_language,
+                "patience": WHISPER_PATIENCE,
+                "suppress_tokens": WHISPER_SUPPRESS_TOKENS,
+                "initial_prompt": WHISPER_INITIAL_PROMPT,
+                "condition_on_previous_text": WHISPER_CONDITION_ON_PREVIOUS_TEXT,
+                "compression_ratio_threshold": WHISPER_COMPRESSION_RATIO_THRESHOLD,
+                "logprob_threshold": WHISPER_LOGPROB_THRESHOLD,
+                "no_speech_threshold": WHISPER_NO_SPEECH_THRESHOLD,
+                "fp16": True,
+                "word_timestamps": True
+            }
+
+            print("Running inference...")
+            start_event = torch.cuda.Event(enable_timing=True)
+            end_event = torch.cuda.Event(enable_timing=True)
+            start_event.record()
+
+            try:
+                with torch.inference_mode():
+                    result = self.model.transcribe(str(video), temperature=temperature, **args)
+
+                end_event.record()
+                torch.cuda.synchronize()
+                elapsed_time = start_event.elapsed_time(end_event)
+                print(f"Inference completed in {elapsed_time:.2f} ms")
+
+                detected_language_code = result["language"]
+                detected_language_name = LANGUAGES.get(detected_language_code, detected_language_code)
+                print(f"Detected language: {detected_language_name}")
+
+                formatted_results = format_whisper_results(result)
+
+                if len(formatted_results) == 0:
+                    print("No speech detected in audio")
+            except Exception as e:
+                print(f"Transcription failed: {e}")
+                print("Continuing without captions...")
         else:
-            self.model = self.models[self.current_model]
-
-        # Temperature settings
-        temperature = WHISPER_TEMPERATURE
-        if WHISPER_TEMPERATURE_INCREMENT_ON_FALLBACK is not None:
-            temperature = tuple(
-                np.arange(temperature, 1.0 + 1e-6, WHISPER_TEMPERATURE_INCREMENT_ON_FALLBACK)
-            )
-        else:
-            temperature = [temperature]
-
-        # Language normalization
-        normalized_language = WHISPER_LANGUAGE.lower() if WHISPER_LANGUAGE.lower() != "auto" else None
-        if normalized_language and normalized_language not in LANGUAGES:
-            normalized_language = TO_LANGUAGE_CODE.get(normalized_language, normalized_language)
-
-        args = {
-            "language": normalized_language,
-            "patience": WHISPER_PATIENCE,
-            "suppress_tokens": WHISPER_SUPPRESS_TOKENS,
-            "initial_prompt": WHISPER_INITIAL_PROMPT,
-            "condition_on_previous_text": WHISPER_CONDITION_ON_PREVIOUS_TEXT,
-            "compression_ratio_threshold": WHISPER_COMPRESSION_RATIO_THRESHOLD,
-            "logprob_threshold": WHISPER_LOGPROB_THRESHOLD,
-            "no_speech_threshold": WHISPER_NO_SPEECH_THRESHOLD,
-            "fp16": True,
-            "word_timestamps": True
-        }
-
-
-        print("Running inference...")
-        start_event = torch.cuda.Event(enable_timing=True)
-        end_event = torch.cuda.Event(enable_timing=True)
-        start_event.record()
-
-        with torch.inference_mode():
-            result = self.model.transcribe(str(video), temperature=temperature, **args)
-
-
-        end_event.record()
-        torch.cuda.synchronize()
-        elapsed_time = start_event.elapsed_time(end_event)
-        print(f"Inference completed in {elapsed_time:.2f} ms")
-
-        detected_language_code = result["language"]
-        detected_language_name = LANGUAGES.get(detected_language_code, detected_language_code)
-
-        print(f"Detected language: {detected_language_name}")
-
-        formatted_results = format_whisper_results(result)
+            print("No audio stream found in video - skipping transcription")
 
         # save the results to a json file on the /src/public directory
         output_file = f"/src/public/{hash}.json"
@@ -287,3 +298,13 @@ def get_audio_duration(file_path):
     except ffmpeg.Error as e:
         print(f"Error reading audio file: {e.stderr}")
         return -1
+
+def has_audio_stream(file_path):
+    """Check if video file has an audio stream"""
+    try:
+        probe = ffmpeg.probe(file_path)
+        audio_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'audio'), None)
+        return audio_stream is not None
+    except ffmpeg.Error as e:
+        print(f"Error probing file: {e.stderr}")
+        return False
