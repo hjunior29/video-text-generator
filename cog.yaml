@@ -1,10 +1,8 @@
 image: "r8.im/hjunior29/video-text-generator"
 
 build:
-  # set to true if your model requires a GPU
   gpu: true
 
-  # a list of ubuntu apt packages to install
   system_packages:
     - "libatk1.0-0"
     - "libatk-bridge2.0-0"
@@ -19,7 +17,6 @@ build:
     - "libcairo2"
     - "ffmpeg"
     - "unzip"
-    # Chrome Headless dependencies
     - "libnss3"
     - "libnspr4"
     - "libasound2"
@@ -44,7 +41,6 @@ build:
     - "libappindicator3-1"
     - "xdg-utils"
 
-  # python version in the form '3.11' or '3.11.4'
   python_version: "3.11"
 
   python_packages:
@@ -58,12 +54,10 @@ build:
     - "httpx==0.24.1"
     - ipython
 
-  # commands run after the environment is setup
   run:
     - "curl -fsSL https://bun.sh/install | bash"
     - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/download/v0.8.2/pget_linux_x86_64" && chmod +x /usr/local/bin/pget
     - --mount=type=cache,target=/root/.cache/pip pip install cog==0.10.0a15
     - ln -sf $(which echo) $(which pip)
 
-# predict.py defines how predictions are run on your model
 predict: "predict.py:Predictor"
