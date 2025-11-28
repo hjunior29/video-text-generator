@@ -230,9 +230,25 @@ class Predictor(BasePredictor):
             "textOverlays": parsed_overlays,
         }
 
-        render_command = f"/root/.bun/bin/bunx remotion render --concurrency='90%' --props='{json.dumps(props)}' CaptionedVideo out/{hash}_captioned.mp4"
-        print(f"Running render command: {render_command}")
-        subprocess.run(['bash', '-c', render_command], check=True)
+        # Save props to a temp file to avoid shell escaping issues with special characters
+        props_file = f"/tmp/{hash}_props.json"
+        with open(props_file, "w") as f:
+            json.dump(props, f)
+
+        render_command = [
+            "/root/.bun/bin/bunx",
+            "remotion",
+            "render",
+            "--concurrency=90%",
+            f"--props={props_file}",
+            "CaptionedVideo",
+            f"out/{hash}_captioned.mp4"
+        ]
+        print(f"Running render command: {' '.join(render_command)}")
+        subprocess.run(render_command, check=True)
+
+        # cleanup props file
+        os.remove(props_file)
 
         # cleanup
         os.remove(video_file)
