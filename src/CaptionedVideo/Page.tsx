@@ -112,13 +112,13 @@ const BoxedStyle: React.FC<{
               fontFamily,
               textTransform: "uppercase",
               fontWeight: "bold",
-              lineHeight: 1,
+              lineHeight: 1.1,
               // Active word: colored background, black text
               // Inactive word: no background, white text with stroke
               color: active ? "#000000" : "white",
               backgroundColor: active ? highlightColor : "transparent",
-              padding: active ? "12px 20px" : "0",
-              borderRadius: active ? "10px" : "0",
+              padding: active ? "8px 16px 12px 16px" : "0",
+              borderRadius: active ? "8px" : "0",
               WebkitTextStroke: active ? "0px" : "4px black",
               paintOrder: "stroke",
             }}
