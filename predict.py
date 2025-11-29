@@ -256,7 +256,14 @@ class Predictor(BasePredictor):
             f"out/{hash}_captioned.mp4"
         ]
         print(f"Running render command: {' '.join(render_command)}")
-        subprocess.run(render_command, check=True)
+
+        # Run with output capture to see errors
+        result = subprocess.run(render_command, capture_output=True, text=True)
+        print(f"Render stdout: {result.stdout}")
+        if result.stderr:
+            print(f"Render stderr: {result.stderr}")
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(result.returncode, render_command, result.stdout, result.stderr)
 
         # cleanup props file
         os.remove(props_file)

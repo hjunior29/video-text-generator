@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AbsoluteFill,
   CalculateMetadataFunction,
-  cancelRender,
   continueRender,
   delayRender,
   getInputProps,
@@ -90,19 +89,27 @@ export const CaptionedVideo: React.FC<{
   useEffect(() => {
     fetchSubtitles();
 
-    const c = watchStaticFile(subtitlesFile, () => {
-      fetchSubtitles();
-    });
+    // Only watch file if it exists
+    const fileExists = getFileExists(subtitlesFile);
+    if (fileExists) {
+      const c = watchStaticFile(subtitlesFile, () => {
+        fetchSubtitles();
+      });
 
-    return () => {
-      c.cancel();
-    };
+      return () => {
+        c.cancel();
+      };
+    }
   }, [fetchSubtitles, src, subtitlesFile]);
 
   const { pages } = useMemo(() => {
+    // If no subtitles, return empty pages array
+    if (!subtitles || subtitles.length === 0) {
+      return { pages: [] };
+    }
     return createTikTokStyleCaptions({
       combineTokensWithinMilliseconds: SWITCH_CAPTIONS_EVERY_MS,
-      captions: subtitles ?? [],
+      captions: subtitles,
     });
   }, [subtitles]);
 
